@@ -132,12 +132,14 @@ if [ "$DRY_RUN_MODE" != "0" ]; then
 fi
 
 BANKR_API_KEY="$(resolve_bankr_api_key)"
-BANKR_API_URL="$(resolve_bankr_api_url)"
+BANKR_SUBMIT_URL="$(resolve_bankr_submit_url)"
+BANKR_WAIT_FOR_CONFIRMATION_JSON="$(bankr_wait_for_confirmation_json)"
 REQUEST_PAYLOAD="$(jq -n \
   --arg to "$COLLECTION_CONTRACT" \
   --argjson chainId "$CHAIN_ID" \
   --arg data "$CALLDATA" \
   --arg description "$DESCRIPTION" \
+  --argjson waitForConfirmation "$BANKR_WAIT_FOR_CONFIRMATION_JSON" \
   '{
     transaction: {
       to: $to,
@@ -146,13 +148,19 @@ REQUEST_PAYLOAD="$(jq -n \
       data: $data
     },
     description: $description,
-    waitForConfirmation: true
+    waitForConfirmation: $waitForConfirmation
   }')"
 
-RESPONSE="$(curl -sS --max-time "$BANKR_SUBMIT_TIMEOUT_SECONDS" -X POST "$BANKR_API_URL/agent/submit" \
+RESPONSE="$(curl -sS --max-time "$BANKR_SUBMIT_TIMEOUT_SECONDS" -X POST "$BANKR_SUBMIT_URL" \
   -H "X-API-Key: $BANKR_API_KEY" \
   -H "Content-Type: application/json" \
   -d "$REQUEST_PAYLOAD")"
+
+[ -n "$RESPONSE" ] || err "Bankr submit returned empty response"
+if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
+  printf 'Bankr submit returned non-JSON response:\n%s\n' "$RESPONSE" >&2
+  err "Bankr submit returned non-JSON response"
+fi
 
 SUCCESS="$(echo "$RESPONSE" | jq -r '.success // false')"
 if [ "$SUCCESS" != "true" ]; then

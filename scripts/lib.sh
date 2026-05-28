@@ -146,6 +146,25 @@ resolve_bankr_api_url() {
   echo "https://api.bankr.bot"
 }
 
+resolve_bankr_submit_url() {
+  local api_url submit_path
+  api_url="$(resolve_bankr_api_url)"
+  submit_path="${BANKR_SUBMIT_PATH:-/wallet/submit}"
+
+  case "$submit_path" in
+    http://*|https://*) echo "$submit_path" ;;
+    /*) echo "${api_url%/}$submit_path" ;;
+    *) echo "${api_url%/}/$submit_path" ;;
+  esac
+}
+
+bankr_wait_for_confirmation_json() {
+  case "${BANKR_WAIT_FOR_CONFIRMATION:-false}" in
+    1|true|TRUE|yes|YES) echo "true" ;;
+    *) echo "false" ;;
+  esac
+}
+
 extract_token_id_from_receipt() {
   local receipt_json="$1"
   local contract_address="$2"
